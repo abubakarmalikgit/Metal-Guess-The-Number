@@ -29,10 +29,25 @@ from discord.ext import commands
 # CONFIG
 # ---------------------------------------------------------
 
-TOKEN = os.environ.get("DISCORD_TOKEN")
-PORT = int(os.environ.get("PORT", 8080))
-GUILD_ID = os.environ.get("GUILD_ID")  # optional: instant command sync
-STATE_FILE = Path(os.environ.get("STATE_PATH", "events.json"))
+def env_str(name: str, default: str = "") -> str:
+  """Read an env var, treating blank or whitespace-only values as unset.
+  Render creates empty variables when a key is added without a value."""
+  return (os.environ.get(name) or "").strip() or default
+
+
+def env_int(name: str, default: int) -> int:
+  raw = env_str(name)
+  if not raw.lstrip("+-").isdigit():
+    if raw:
+      logging.warning("Ignoring invalid %s=%r, using %s", name, raw, default)
+    return default
+  return int(raw)
+
+
+TOKEN = env_str("DISCORD_TOKEN")
+PORT = env_int("PORT", 8080)
+GUILD_ID = env_int("GUILD_ID", 0)  # optional: instant command sync
+STATE_FILE = Path(env_str("STATE_PATH", "events.json"))
 
 COLOR_GOLD = 0xF1C40F
 COLOR_BLURPLE = 0x5865F2
@@ -869,7 +884,7 @@ class EventBot(commands.Bot):
     self.web_runner = await start_webserver(PORT)
 
     if GUILD_ID:
-      guild = discord.Object(id=int(GUILD_ID))
+      guild = discord.Object(id=GUILD_ID)
       self.tree.copy_global_to(guild=guild)
       await self.tree.sync(guild=guild)
       logger.info("Commands synced to guild %s", GUILD_ID)
